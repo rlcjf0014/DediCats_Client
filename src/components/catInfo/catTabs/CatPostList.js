@@ -4,11 +4,15 @@ import { withNavigation } from 'react-navigation';
 import {
   StyleSheet,
   View,
+  Text,
   FlatList,
   SafeAreaView,
   ActivityIndicator,
+  Modal,
   KeyboardAvoidingView,
+  TouchableWithoutFeedback,
 } from 'react-native';
+import { Fab, Icon } from 'native-base';
 import * as Font from 'expo-font';
 import CatPost from './CatPost';
 import CatPostInput from './CatPostInput';
@@ -29,17 +33,24 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 50,
     alignItems: 'center',
   },
-  keyboard: { 
-      width: '95%',
-     position:"absolute",
-     zIndex: 1,
+  modalView: {
+    flex: 1,
+    backgroundColor: '#000000aa',
   },
   safeArea: {
     flex: 3,
     width: '95%',
     backgroundColor: '#ffffff',
     alignItems: 'center',
+    zIndex: 1,
   },
+  noPhotoView: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingTop: 20,
+  },
+  noPhotoTxt: { color: '#7f8296', fontSize: 18, paddingBottom: 15 },
 });
 
 class CatPostList extends React.Component {
@@ -50,8 +61,8 @@ class CatPostList extends React.Component {
       loadingFont: true,
     };
   }
+
   componentDidMount() {
-    console.log('CatPostList mount');
     this.props.getPostList(this.props.navigation);
   }
 
@@ -97,38 +108,69 @@ class CatPostList extends React.Component {
 
   render() {
     const {
+      nickname,
       postList,
       _handleLoadMorePosts,
       isRefreshingPost,
       _handleRefresh,
+      modalVisible,
+      toggleModalVisible,
+      exitInputModal,
     } = this.props;
     const { loadingFont } = this.state;
     if (loadingFont) {
       this.loadFont();
       return <View />;
     }
+
     return (
       <View style={styles.container}>
         <View style={styles.radiusView}>
-          <SafeAreaView style={styles.safeArea}>
-          <KeyboardAvoidingView style={styles.keyboard}>
-            {this.state.visibility ? <CatPostInput /> : null}
-          </KeyboardAvoidingView>
-            <FlatList
-              data={postList}
-              renderItem={this._renderItem}
-              keyExtractor={(item, idx) => `post_${item.id}_${idx}`}
-              showsVerticalScrollIndicator={false}
-              onEndReached={_handleLoadMorePosts}
-              onEndReachedThreshold={0}
-              ListFooterComponent={this.renderFooter}
-              refreshing={isRefreshingPost}
-              onRefresh={_handleRefresh}
-              initialNumToRender={3}
-              onScrollBeginDrag={() => this.handledisappear()}
-              onMomentumScrollEnd={() => this.handleshow()}
-            />
-          </SafeAreaView>
+          {postList.length !== 0 ? (
+            <SafeAreaView style={styles.safeArea}>
+              <FlatList
+                data={postList}
+                renderItem={this._renderItem}
+                keyExtractor={(item, idx) => `post_${item.id}_${idx}`}
+                showsVerticalScrollIndicator={false}
+                onEndReached={_handleLoadMorePosts}
+                onEndReachedThreshold={0}
+                ListFooterComponent={this.renderFooter}
+                refreshing={isRefreshingPost}
+                onRefresh={_handleRefresh}
+                initialNumToRender={3}
+              />
+            </SafeAreaView>
+          ) : (
+            <View style={styles.noPhotoView}>
+              <Text style={styles.noPhotoTxt}>
+                {`There's no Post of ${nickname} now.`}
+              </Text>
+              <Text>Upload the FIRST post!</Text>
+            </View>
+          )}
+          <Modal
+            animationType="fade"
+            transparent
+            visible={modalVisible}
+            onRequestClose={() => exitInputModal()}
+          >
+            <TouchableWithoutFeedback onPress={() => exitInputModal()}>
+              <KeyboardAvoidingView style={styles.modalView}>
+                <CatPostInput />
+              </KeyboardAvoidingView>
+            </TouchableWithoutFeedback>
+          </Modal>
+          <Fab
+            active={false}
+            direction="up"
+            containerStyle={{ zIndex: 1 }}
+            style={{ backgroundColor: '#6772F1' }}
+            position="bottomRight"
+            onPress={() => toggleModalVisible()}
+          >
+            <Icon name="create" />
+          </Fab>
         </View>
       </View>
     );
@@ -139,6 +181,7 @@ export default inject(({
   cat, post, helper, comment,
 }) => ({
   catId: cat.selectedCatBio[0].id,
+  nickname: cat.selectedCatBio[0].nickname,
   setCatPost: comment.setCatPost,
   postList: post.postList,
   getPostList: post.getPostList,
@@ -148,4 +191,7 @@ export default inject(({
   isRefreshingPost: post.isRefreshingPost,
   convertDateTime: helper.convertDateTime,
   maxPostPage: post.maxPostPage,
+  modalVisible: post.modalVisible,
+  toggleModalVisible: post.toggleModalVisible,
+  exitInputModal: post.exitInputModal,
 }))(observer(withNavigation(CatPostList)));

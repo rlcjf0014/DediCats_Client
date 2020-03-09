@@ -37,6 +37,7 @@ class CommentStore {
   // 처음 방에 입장했을 때 댓글 수
   initialComments = 0;
 
+  // onPress한 포스트 정보 저장, 소켓 연결
   setCatPost = item => {
     this.root.cat.selectedCatPost = item;
     this.initialComments = item.comments.length;
@@ -56,20 +57,17 @@ class CommentStore {
         if (socket.connected) {
           this.socketId = sockets.id;
           this.isConnectSocket = true;
-        } else {
-          console.log('Connection Failed');
         }
       });
 
       sockets.on('drop', () => {
-        console.log('drop');
         sockets.disconnect();
         this.isConnectSocket = false;
       });
 
       sockets.on('new comment', comment => {
         this.newComment = comment;
-        this.commentList.unshift(this.newComment);
+        this.commentList = [this.newComment, ...this.commentList];
       });
     };
     helper(socket);
@@ -84,8 +82,7 @@ class CommentStore {
       )
       .then(res => true)
       .catch(err => {
-        this.root.auth.expiredTokenHandler(err, navigation);
-        console.dir(err);
+        this.root.auth.expiredTokenHandler(err, navigation, this.offUser);
       });
     return result;
   };
@@ -97,21 +94,16 @@ class CommentStore {
       const url = `${SERVER_URL}/comment/${postId}/${this.commentPage}`;
       const comment = await axios.get(url);
       if (comment) {
-        this.commentList = this.commentList.concat(
-          comment.data,
-        );
-        console.log('서버에서 받은 코멘트들', this.initialComments);
-        console.log('받아온 코멘트 리스트', this.commentList.length);
+        this.commentList = this.commentList.concat(comment.data);
       }
       return;
     } catch (error) {
-      this.root.auth.expiredTokenHandler(err, navigation);
-      console.error(error);
+      this.root.auth.expiredTokenHandler(err, navigation, this.getCommentList);
     }
   };
 
   // 댓글 창에서 나갈 때 리셋
-  resetCommentState = (type) => {
+  resetCommentState = type => {
     this.commentList = [];
     this.selectedComment = null;
     this.commentPage = 0;
@@ -130,9 +122,9 @@ class CommentStore {
   // * 댓글 추가와 수정 둘다 가능
   addComment = (mode, navigation) => {
     const url =
-    mode === 'new'
-      ? `${SERVER_URL}/comment/add`
-      : `${SERVER_URL}/comment/update`;
+      mode === 'new'
+        ? `${SERVER_URL}/comment/add`
+        : `${SERVER_URL}/comment/update`;
 
     const postId = this.root.cat.selectedCatPost.id;
     if (mode === 'new') {
@@ -148,8 +140,12 @@ class CommentStore {
           if (err.response && err.response.status === 409) {
             Alert.alert('댓글 업로드에 실패했습니다. 다시 한 번 등록해주세요!');
           } else {
-            this.root.auth.expiredTokenHandler(err, navigation);
-            console.dir(err);
+            this.root.auth.expiredTokenHandler(
+              err,
+              navigation,
+              this.addComment,
+              mode,
+            );
           }
         });
     }
@@ -167,7 +163,7 @@ class CommentStore {
       .catch(err => {
         if (err.response && err.response.status === 409) {
           Alert.alert('댓글 수정에 실패했습니다. 다시 한 번 등록해주세요!');
-        } else console.dir(err);
+        }
       });
   };
 
@@ -181,7 +177,13 @@ class CommentStore {
 
   // 수정 상황 불린 변경
   setCommentModify = () => {
-    this.commentModifyState = !this.commentModifyState;
+    this.commentModifyState = true;
+  };
+
+  // 수정 취소 시 원상태로 복귀
+  resetModifyComment = () => {
+    this.root.helper.clearInput('comment', 'inputComment');
+    this.commentModifyState = false;
   };
 
   // 댓글 수정
@@ -194,7 +196,7 @@ class CommentStore {
   // 댓글 삭제
   deleteComment = async (comment, navigation) => {
     await this.setCatComment(comment);
-    axios
+    const result = axios
       .post(
         `${SERVER_URL}/comment/delete`,
         { commentId: this.selectedComment.id },
@@ -203,11 +205,17 @@ class CommentStore {
       .then(res => {
         this.initialComments -= 1;
         Alert.alert('게시글이 삭제되었습니다.');
+        return true;
       })
       .catch(err => {
-        this.root.auth.expiredTokenHandler(err, navigation);
-        console.dir(err);
+        this.root.auth.expiredTokenHandler(
+          err,
+          navigation,
+          this.deleteComment,
+          comment,
+        );
       });
+    return result;
   };
 }
 
@@ -230,6 +238,7 @@ decorate(CommentStore, {
   addComment: action,
   setCatComment: action,
   setCommentModify: action,
+  resetModifyComment: action,
   modifyComment: action,
   deleteComment: action,
 });

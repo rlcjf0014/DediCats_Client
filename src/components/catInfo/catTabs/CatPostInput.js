@@ -8,19 +8,30 @@ import {
   TouchableOpacity,
   TouchableHighlight,
   Image,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Form, Textarea, Text } from 'native-base';
 import { SimpleLineIcons } from '@expo/vector-icons';
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
+    flex: 1,
+    height: '70%',
+    width: '90%',
     alignItems: 'center',
+    alignSelf: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff',
+    marginTop: '20%',
+    marginBottom: '60%',
+    borderRadius: 25,
+    position: 'absolute',
+    zIndex: 1,
   },
   inputView: {
     width: '95%',
+    marginTop: '5%',
   },
   inputForm: {
     borderWidth: 2,
@@ -40,10 +51,10 @@ const styles = StyleSheet.create({
   removeBtn: {
     position: 'absolute',
     zIndex: 1,
-    top: -5,
-    right: -5,
-    width: 25,
-    height: 25,
+    top: 40,
+    left: 15,
+    width: 30,
+    height: 30,
     borderRadius: 100,
     backgroundColor: '#F38847',
     alignSelf: 'flex-end',
@@ -55,13 +66,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   image: {
-    width: 120,
-    height: 120,
+    width: 300,
+    height: 300,
     resizeMode: 'stretch',
     overflow: 'hidden',
     borderRadius: 5,
     borderWidth: 1,
     borderColor: '#EDF1F5',
+    position: 'absolute',
+    left: 25,
+    marginTop: 50,
   },
   addImageBtn: {
     width: '100%',
@@ -70,11 +84,18 @@ const styles = StyleSheet.create({
   },
   imageIcon: { fontSize: 30, paddingLeft: 10, color: '#6772F1' },
   addImageTxt: { fontSize: 14, color: '#6772F1', paddingLeft: 5 },
+  btnView: {
+    justifyContent: 'center',
+    alignContent: 'center',
+    flexDirection: 'row',
+    flex: 1,
+    marginRight: '18%',
+  },
   submitBtn: {
     justifyContent: 'center',
-    alignItems: 'flex-end',
-    marginLeft: 20,
-    marginRight: 30,
+    alignItems: 'center',
+    marginRight: -50,
+    right: 50,
     padding: 10,
     margin: 0,
     backgroundColor: '#6772F1',
@@ -82,7 +103,7 @@ const styles = StyleSheet.create({
   },
   submitBtnTxt: {
     color: '#ffffff',
-    fontSize: 17,
+    fontSize: 16,
   },
   paddingTop5: {
     paddingTop: 5,
@@ -100,55 +121,60 @@ const CatPostInput = ({
   removePhoto,
   validateAddInput,
   addPost,
+  exitInputModal,
 }) => (
-  <View style={styles.container}>
-    <View style={styles.inputView}>
-      <Form style={styles.inputForm}>
-        <Textarea
-          rowSpan={selectedCatInputContent.length > 27 ? 4 : 2}
-          placeholder="글을 입력해주세요."
-          value={selectedCatInputContent}
-          onChangeText={text =>
-            updateInput('cat', 'selectedCatInputContent', text)
-          }
-        />
-      </Form>
-      <View>
-        <View style={styles.inputBottomView}>
-          <View style={styles.imageView}>
-            {postModifyState ? (
-              <View>
-                <Text note>*게시글만 수정 가능합니다.</Text>
-              </View>
-            ) : selectedCatUri ? (
-              <View>
-                <TouchableHighlight
-                  style={styles.removeBtn}
-                  underlayColor="#FFECE0"
-                  onPress={removePhoto}
+  <TouchableWithoutFeedback onPress={() => {}}>
+    <KeyboardAvoidingView style={styles.container} behavior="height">
+      <View style={styles.inputView}>
+        <Form style={styles.inputForm}>
+          <Textarea
+            rowSpan={selectedCatInputContent.length > 27 ? 4 : 2}
+            maxLength={100}
+            placeholder="글을 입력해주세요."
+            value={selectedCatInputContent}
+            onChangeText={text =>
+              updateInput('cat', 'selectedCatInputContent', text)
+            }
+          />
+        </Form>
+        <View>
+          <View style={styles.inputBottomView}>
+            <View style={styles.imageView}>
+              {postModifyState ? (
+                <View>
+                  <Text note>*게시글만 수정 가능합니다.</Text>
+                </View>
+              ) : selectedCatUri ? (
+                <View>
+                  <TouchableHighlight
+                    style={styles.removeBtn}
+                    underlayColor="#FFECE0"
+                    onPress={removePhoto}
+                  >
+                    <Text style={styles.removeBtnTxt}>X</Text>
+                  </TouchableHighlight>
+                  <Image
+                    style={styles.image}
+                    source={{ uri: selectedCatUri }}
+                  />
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.addImageBtn}
+                  onPress={async () => {
+                    await getPermissionAsync();
+                    pickImage('cat', 'selectedCat');
+                  }}
                 >
-                  <Text style={styles.removeBtnTxt}>X</Text>
-                </TouchableHighlight>
-                <Image style={styles.image} source={{ uri: selectedCatUri }} />
-              </View>
-            ) : (
+                  <SimpleLineIcons style={styles.imageIcon} name="picture" />
+                  <Text style={styles.addImageTxt}>이미지 첨부(1장)</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.btnView}>
               <TouchableOpacity
-                style={styles.addImageBtn}
+                style={styles.submitBtn}
                 onPress={async () => {
-                  await getPermissionAsync();
-                  pickImage('cat', 'selectedCat');
-                }}
-              >
-                <SimpleLineIcons style={styles.imageIcon} name="picture" />
-                <Text style={styles.addImageTxt}>이미지 첨부(1장)</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <View>
-            <TouchableOpacity
-              style={styles.submitBtn}
-              onPress={async () => {
-                try {
                   const validation = validateAddInput(
                     'cat',
                     'selectedCatInputContent',
@@ -158,21 +184,27 @@ const CatPostInput = ({
                       ? await addPost('update', navigation)
                       : await addPost('new', navigation);
                   }
-                } catch (err) {
-                  console.dir(err);
-                }
-              }}
-            >
-              <Text style={styles.submitBtnTxt}>
-                {postModifyState ? '수정' : '등록'}
-              </Text>
-            </TouchableOpacity>
+                }}
+              >
+                <Text style={styles.submitBtnTxt}>
+                  {postModifyState ? '수정' : '등록'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.btnView}>
+              <TouchableOpacity
+                style={styles.submitBtn}
+                onPress={() => exitInputModal()}
+              >
+                <Text style={styles.submitBtnTxt}>취소</Text>
+              </TouchableOpacity>
+            </View>
           </View>
+          <View style={styles.paddingTop5} />
         </View>
-        <View style={styles.paddingTop5} />
       </View>
-    </View>
-  </View>
+    </KeyboardAvoidingView>
+  </TouchableWithoutFeedback>
 );
 
 export default inject(({ cat, helper, auth, post }) => ({
@@ -185,4 +217,5 @@ export default inject(({ cat, helper, auth, post }) => ({
   validateAddInput: helper.validateAddInput,
   getPermissionAsync: auth.getPermissionAsync,
   addPost: post.addPost,
+  exitInputModal: post.exitInputModal,
 }))(observer(withNavigation(CatPostInput)));

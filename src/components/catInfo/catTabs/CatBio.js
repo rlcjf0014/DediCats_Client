@@ -116,7 +116,6 @@ const styles = StyleSheet.create({
 
 class CatBio extends React.Component {
   componentDidMount() {
-    console.log('CatBio mount');
     const { catId } = this.props;
     this.props.getSelectedCatInfo(catId, this.props.navigation);
     this.props.getMyInfo();
@@ -194,7 +193,7 @@ class CatBio extends React.Component {
                       <CardItem style={styles.content}>
                         <Text>{selectedCatBio.today}</Text>
                       </CardItem>
-                    ) : (
+                      ) : (
                       <Form style={styles.catTodayForm}>
                         <Picker
                           note
@@ -207,6 +206,10 @@ class CatBio extends React.Component {
                           selectedValue={selectedCatToday}
                           onValueChange={postCatToday}
                         >
+                          <Picker.Item
+                            label="오늘의 건강 상태 선택하기"
+                            value="오늘의 건강 상태 선택하기"
+                          />
                           <Picker.Item
                             label="😼기운 넘쳐요"
                             value="😼기운 넘쳐요"
@@ -227,7 +230,7 @@ class CatBio extends React.Component {
                           <Picker.Item label="🙀아파요" value="🙀아파요" />
                         </Picker>
                       </Form>
-                    )}
+                      )}
                   </Body>
                 </CardItem>
                 <CardItem>

@@ -94,7 +94,6 @@ class CatStore {
       .get(`${SERVER_URL}/cat/${catId}`, defaultCredential)
       .then(res => {
         if (res.data[0].todayTime) {
-          // Helper Store
           res.data[0].todayTime = this.root.helper.changeToDateTime(
             res.data[0].todayTime,
           );
@@ -104,21 +103,21 @@ class CatStore {
         }
         res.data[0].cut = JSON.parse(res.data[0].cut);
         this.selectedCatBio = res.data;
-        console.log(
-          '이 고양이 팔로우 중인가요?',
-          this.selectedCatBio[1].isFollowing,
-        );
         return true;
       })
       .catch(err => {
-        this.root.auth.expiredTokenHandler(err, navigation);
-        console.dir(err);
+        this.root.auth.expiredTokenHandler(
+          err,
+          navigation,
+          this.getSelectedCatInfo,
+          catId,
+        );
         return false;
       });
     return result;
   };
 
-  // CatStore
+  // 팔로우 버튼 클릭 시 실행
   followCat = (catId, navigation) => {
     const { map, user, auth } = this.root;
     axios
@@ -130,17 +129,38 @@ class CatStore {
         user.getMyCatList(navigation);
       })
       .catch(err => {
-        auth.expiredTokenHandler(err, navigation);
-        console.dir(err);
+        auth.expiredTokenHandler(err, navigation, this.followCat, catId);
       });
   };
 
-  // CatStore
+  unFollowCat = (catId, navigation) => {
+    const { cat, user, map } = this.root;
+    axios
+      .post(`${SERVER_URL}/cat/unfollow`, { catId }, defaultCredential)
+      .then(res => {
+        user.unFollowedCat = catId;
+        runInAction(() => {
+          cat.getSelectedCatInfo(catId, navigation);
+          cat.getFollowerList(catId, navigation);
+          map.getMapInfo(navigation);
+          user.getMyCatList(navigation);
+        });
+      })
+      .catch(err => {
+        this.root.auth.expiredTokenHandler(
+          err,
+          navigation,
+          this.unFollowCat,
+          catId,
+        );
+      });
+  };
+
+  // 중성화 여부 선택
   selectCut = async (variable, type) => {
     if (variable === 'addCat') {
       this[`${variable}Cut`] = { Y: 0, N: 0, unknown: 0 };
     }
-    // this[variable].cut = { Y: 0, N: 0, unknown: 0 };
     runInAction(() => {
       const keys = Object.keys(this[`${variable}CutClicked`]);
       const values = Object.values(this[`${variable}CutClicked`]);
@@ -149,8 +169,6 @@ class CatStore {
           values.splice(idx, 1, true);
         } else values.splice(idx, 1, false);
       });
-
-      // this[variable].cutClicked = {
       this[`${variable}CutClicked`] = {
         Y: values[0],
         N: values[1],
@@ -164,7 +182,7 @@ class CatStore {
     });
   };
 
-  // CatStore
+  // 새로운 고양이마커 추가할 때 input form 확인
   validateAddCat = () => {
     let isValidated = false;
     const {
@@ -194,10 +212,9 @@ class CatStore {
     return isValidated;
   };
 
-  // MapStore
+  // KAKAO API 로 위치에 따른 주소를 fetch
   getAddress = async () => {
     const { latitude, longitude } = this.addCatLocation;
-    console.log('카카오로 보낼 좌표', latitude, longitude);
     const address = await axios
       .get(
         `https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${longitude}&y=${latitude}&input_coord=WGS84`,
@@ -213,24 +230,17 @@ class CatStore {
           region_2depth_name,
           region_3depth_name,
         } = res.data.documents[0].address;
-        console.log(
-          '받은 주소는',
-          region_1depth_name,
-          region_2depth_name,
-          region_3depth_name,
-        );
         this.addCatAddress = `${region_1depth_name} ${region_2depth_name} ${region_3depth_name}`;
         return true;
       })
       .catch(err => {
-        console.dir(err);
         Alert.alert('좌표가 정확하지 않습니다. 다시 지도에서 선택해주세요!');
         return false;
       });
     return address;
   };
 
-  // CatStore
+  // 새로운 고양이 마커 정보를 서버로 POST
   addCat = async navigation => {
     const {
       addCatAddress,
@@ -264,23 +274,21 @@ class CatStore {
         if (err.response && err.response.status === 404) {
           Alert.alert('고양이를 등록할 수 없습니다');
         } else {
-          this.root.auth.expiredTokenHandler(err, navigation);
-          console.dir(err);
+          this.root.auth.expiredTokenHandler(err, navigation, this.addCat);
         }
       });
 
     return result;
   };
 
-  // CatStore
+  // 실종 신고 탭 toggle
   toggleRainbowOpen = () => {
     this.selectedCatRainbowOpen = !this.selectedCatRainbowOpen;
   };
 
-  // CatStore
+  // 실종 신고 버튼 press
   reportRainbow = async (type, navigation) => {
     const catId = this.selectedCatBio[0].id;
-    console.log(catId);
     const rainbow = {
       Y: 0,
       YDate: null,
@@ -296,20 +304,24 @@ class CatStore {
         return JSON.parse(res.data.rainbow);
       })
       .catch(err => {
-        this.root.auth.expiredTokenHandler(err, navigation);
-        console.dir(err);
+        this.root.auth.expiredTokenHandler(
+          err,
+          navigation,
+          this.reportRainbow,
+          type,
+        );
       });
     return result;
   };
 
-  // CatStore
+  // press한 실종 신고 버튼 기능 disable
   disableReportBtn = type => {
     this[`selectedCatRainbow${type}Reported`] = !this[
       `selectedCatRainbow${type}Reported`
     ];
   };
 
-  // CatStore
+  // 중성화 투표 POST
   postCut = async (type, navigation) => {
     const request = { Y: 0, N: 0, unknown: 0 };
     request[type] = 1;
@@ -328,40 +340,51 @@ class CatStore {
         if (err.response && err.response.status === 409) {
           Alert.alert('중성화 유무 등록에 실패했습니다.');
         } else {
-          this.root.auth.expiredTokenHandler(err, navigation);
-          console.dir(err);
+          this.root.auth.expiredTokenHandler(
+            err,
+            navigation,
+            this.postCut,
+            type,
+          );
         }
       });
     return result;
   };
 
-  // CatStore
+  // 오늘의 건강 상태 선택 POST
   postCatToday = (value, navigation) => {
-    const catId = this.selectedCatBio[0].id;
-    this.selectedCatToday = value;
-    const todayInfo = {
-      catToday: value,
-      catId,
-    };
-    runInAction(() => {
-      axios
-        .post(`${SERVER_URL}/cat/addcatToday`, todayInfo, defaultCredential)
-        .then(res => {
-          this.getSelectedCatInfo(catId);
-        })
-        .catch(err => {
-          if (err.response && err.response.status === 409) {
-            Alert.alert('오늘의 건강 상태 등록에 실패했습니다.');
+    if (value !== '오늘의 건강 상태 선택하기') {
+      const catId = this.selectedCatBio[0].id;
+      this.selectedCatToday = value;
+      const todayInfo = {
+        catToday: value,
+        catId,
+      };
+      runInAction(() => {
+        axios
+          .post(`${SERVER_URL}/cat/addcatToday`, todayInfo, defaultCredential)
+          .then(async res => {
+            await this.getSelectedCatInfo(catId);
             this.selectedCatToday = undefined;
-          } else {
-            this.root.auth.expiredTokenHandler(err, navigation);
-            console.dir(err);
-          }
-        });
-    });
+          })
+          .catch(err => {
+            if (err.response && err.response.status === 409) {
+              Alert.alert('오늘의 건강 상태 등록에 실패했습니다.');
+              this.selectedCatToday = undefined;
+            } else {
+              this.root.auth.expiredTokenHandler(
+                err,
+                navigation,
+                this.postCatToday,
+                value,
+              );
+            }
+          });
+      });
+    }
   };
 
-  // CatStore
+  // 추가하려는 태그 validation
   validateTag = navigation => {
     const { selectedCatNewTag } = this;
     const tags = this.selectedCatBio[2].map(tagInfo => tagInfo.tag.content);
@@ -373,7 +396,7 @@ class CatStore {
     }
   };
 
-  // CatStore
+  // 추가하려는 태그 서버로 POST
   postTag = (newTag, navigation) => {
     const catId = this.selectedCatBio[0].id;
     axios
@@ -390,11 +413,16 @@ class CatStore {
         });
       })
       .catch(err => {
-        this.root.auth.expiredTokenHandler(err, navigation);
-        console.dir(err);
+        this.root.auth.expiredTokenHandler(
+          err,
+          navigation,
+          this.postTag,
+          newTag,
+        );
       });
   };
 
+  // 해당 고양이 Post에 추가된 사진들 GET
   getAlbums = navigation => {
     const catId = this.selectedCatBio[0].id;
     axios
@@ -406,15 +434,16 @@ class CatStore {
         this.selectedCatAlbum = photos;
       })
       .catch(err => {
-        this.root.auth.expiredTokenHandler(err, navigation);
-        console.dir(err);
+        this.root.auth.expiredTokenHandler(err, navigation, this.getAlbums);
       });
   };
 
+  // 고양이 추가할 때 사진 선택
   selectPhoto = photo => {
     this.selectedCatPhoto = photo;
   };
 
+  // 해당 고양이를 팔로우하는 유저리스트 GET
   getFollowerList = (catId, navigation) => {
     axios
       .get(`${SERVER_URL}/cat/follower/${catId}`, defaultCredential)
@@ -422,16 +451,22 @@ class CatStore {
         this.selectedCatFollowerList = res.data;
       })
       .catch(err => {
-        this.root.auth.expiredTokenHandler(err, navigation);
-        console.dir(err);
+        this.root.auth.expiredTokenHandler(
+          err,
+          navigation,
+          this.getFollowerList,
+          catId,
+        );
       });
   };
 
+  // CatInfo 나갈 때 disable 된 실종신고 초기화
   resetRainbowReport = () => {
     this.selectedCatRainbowYReported = false;
     this.selectedCatRainbowNReported = false;
   };
 
+  // CatInfo 나갈 때 disable 된 중성화 투표 초기화
   resetCatCut = () => {
     this.selectedCatCutClicked = { Y: false, N: false, unknown: false };
   };
@@ -466,6 +501,7 @@ decorate(CatStore, {
   selectedCatReportInfo: observable,
   getSelectedCatInfo: action,
   followCat: action,
+  unFollowCat: action,
   selectCut: action,
   validateAddCat: action,
   getAddress: action,

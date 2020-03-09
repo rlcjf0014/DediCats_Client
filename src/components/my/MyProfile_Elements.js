@@ -80,7 +80,6 @@ class MyProfile_Elements extends React.Component {
 
   componentDidMount = async () => {
     await this.handleAndroidBackButton();
-    console.log('MyProfile_Elements mount');
   }
 
   _showActionSheet = () => this.ActionSheet.show();
@@ -269,6 +268,15 @@ class MyProfile_Elements extends React.Component {
                 }}
               >
                 <Text style={styles.askTxt}>문의하기</Text>
+              </TouchableOpacity>
+            </ListItem>
+            <ListItem>
+              <TouchableOpacity
+                onPress={() => {
+                  navigation.navigate('CreditInfoPage');
+                }}
+              >
+                <Text style={styles.askTxt}>크레딧 정보</Text>
               </TouchableOpacity>
             </ListItem>
           </Content>
