@@ -104,4 +104,4 @@ Expo Build
 
 ---
 
-Copyrights by Team CodeStake. For the further use, please contact Team CodeStake via `dedicats16@gmail.com`.
+Copyrights by Team CodeStake. For further information, please contact Team CodeStake via `dedicats16@gmail.com`.
